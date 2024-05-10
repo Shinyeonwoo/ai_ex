@@ -45,9 +45,16 @@ async function run() {
     // Train the model
     await trainModel(model, inputs, labels);
     console.log('Done Training');
+
+    // Make some predictions using the model and compare them to the
+    // original data
+    testModel(model, data, tensorData);
 }
 
 document.addEventListener('DOMContentLoaded', run);
+
+
+
 
 function createModel() {
     // 모델 인스턴스화
@@ -143,3 +150,52 @@ async function trainModel(model, inputs, labels) {
     });
 }
 
+
+// 예측수행
+// 모델이 학습되면 몇 가지 예측을 할 수 있는데, 마력이 낮은 것부터 높은 것까지 일정한 범위의 숫자를 어떻게 예측하는지 확인하여 모델을 평가하는 함수
+function testModel(model, inputData, normalizationData) {
+    const {inputMax, inputMin, labelMin, labelMax} = normalizationData;
+
+    // Generate predictions for a uniform range of numbers between 0 and 1;
+    // We un-normalize the data by doing the inverse of the min-max scaling
+    // that we did earlier.
+    const [xs, preds] = tf.tidy(() => {
+
+        // 모델에 제공할 새 '예시'를 100개 생성합니다. Model.predict는 이러한 예시를 모델에 제공하는 방법입니다.
+        // 학습할 때와 유사한 형태 ([num_examples, num_features_per_example])로 데이터를 구성해야 함
+        const xs = tf.linspace(0, 1, 100);
+        const preds = model.predict(xs.reshape([100, 1]));
+
+        // 데이터를 0~1이 아닌 원래 범위로 되돌리려면 정규화 중에 계산한 값을 사용하고 연산을 반전시킨다.
+        const unNormXs = xs
+        .mul(inputMax.sub(inputMin))
+        .add(inputMin);
+
+        const unNormPreds = preds
+        .mul(labelMax.sub(labelMin))
+        .add(labelMin);
+
+        // .dataSync()는 텐서에 저장된 값의 typedarray를 가져오는 데 사용할 수 있는 메서드임
+        // 이 메서드를 통해 일반 자바스크립트에서 해당 값을 처리할 수 있음. 일반적으로 권장되는 .data()메서드의 동기식 버전임
+        return [unNormXs.dataSync(), unNormPreds.dataSync()];
+    });
+
+    const predictedPoints = Array.from(xs).map((val, i) => {
+        return {x: val, y: preds[i]}
+    });
+
+    const originalPoints = inputData.map(d => ({
+        x: d.horsepower, y: d.mpg,
+    }));
+
+    // tfjs-vis를 사용해 원본 데이터와 모델의 예측을 표시
+    tfvis.render.scatterplot(
+        {name: 'Model Predictions vs Original Data'},
+        {values: [originalPoints, predictedPoints], series: ['original', 'predicted']},
+        {
+        xLabel: 'Horsepower',
+        yLabel: 'MPG',
+        height: 300
+        }
+    );
+}
