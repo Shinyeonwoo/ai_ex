@@ -33,9 +33,18 @@ async function run() {
         }
     );
 
-    
+    // 모델 인스턴스화
     const model = createModel();
     tfvis.show.modelSummary({name: 'Model Summary'}, model);
+
+    // 모델 학습
+    // Convert the data to a form we can use for training.
+    const tensorData = convertToTensor(data);
+    const {inputs, labels} = tensorData;
+
+    // Train the model
+    await trainModel(model, inputs, labels);
+    console.log('Done Training');
 }
 
 document.addEventListener('DOMContentLoaded', run);
@@ -106,3 +115,31 @@ function convertToTensor(data) {
             }
     });
 }
+
+async function trainModel(model, inputs, labels) {
+    // 학습 준비
+    model.compile({
+        optimizer: tf.train.adam(), // 모델이 예시를 보면서 업데이트하는 데 적용될 알고리즘. 
+                                    // 다양한 옵티마이저가 있지만 이 예제에서는 효과적이고 구성이 필요없는 adam 옵티마이저 선택
+        loss: tf.losses.meanSquaredError, // 표시되는 각 배치(데이터 하위 집합)를 얼마나 잘 학습하고 있는지 모델에 알려줄 함수. 
+                                            // 여기서는 meansquarederror를 사용해 모델이 수행한 예측을 실제 값과 비교함
+        metrics: ['mse'],
+    });
+
+    const batchSize = 32; // 각 학습 반복에서 모델이 보게 될 데이터 하위 집합의 크기.
+                        // 일반적인 배치 크기는 32~512범위임. 모든 문제에 맞는 이상적인 배치 크기는 없으며 다양한 배치 크기의 수학적 연계성이 있음
+    const epochs = 50; // 모델이 제공된 전체 데이터 세트를 볼 횟수. 여기서는 데이터 세트를 50번 반복한다.
+
+    // 학습 루프 시작
+    return await model.fit(inputs, labels, { // model.fit은 학습 루프를 시작하기 위해 호출하는 비동기 함수. (비동기라 제공된 프라미스를 반환하여 학습이 완료되는 시기를 호출자가 결정할 수 있음)
+        batchSize,
+        epochs,
+        shuffle: true,
+        callbacks: tfvis.show.fitCallbacks(
+            { name: 'Training Performance' },
+            ['loss', 'mse'],
+            { height: 200, callbacks: ['onEpochEnd'] }
+        )
+    });
+}
+
