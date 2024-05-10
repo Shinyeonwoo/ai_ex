@@ -33,7 +33,23 @@ async function run() {
         }
     );
 
-    // More code will be added below
+    
+    const model = createModel();
+    tfvis.show.modelSummary({name: 'Model Summary'}, model);
 }
 
 document.addEventListener('DOMContentLoaded', run);
+
+function createModel() {
+    // 모델 인스턴스화
+    const model = tf.sequential();
+
+    // 레이어 최초 추가
+    model.add(tf.layers.dense({inputShape: [1], units: 1, useBias: true}));
+
+    // 레이어 추가
+    model.add(tf.layers.dense({units: 1, useBias: true}));
+
+    return model;
+}
+
