@@ -41,6 +41,10 @@ async function run() {
   tfvis.show.modelSummary({name: 'Model Architecture', tab: 'Model'}, model);
 
   await train(model, data);
+
+  // 평가 표시
+  await showAccuracy(model, data);
+  await showConfusion(model, data);
 }
 
 document.addEventListener('DOMContentLoaded', run);
@@ -184,3 +188,64 @@ async function train(model, data) {
 }
 
 
+const classNames = ['Zero', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'];
+
+/**
+ * 
+ * @param {dP} model 
+ * @param {*} data 
+ * @param {*} testDataSize 
+ * @returns 
+ * 예측 수행
+ * 먼저 예측을 수행해야 합니다.
+ * 여기서는 이미지 500개를 가져와 이미지에 포함된 숫자를 예측합니다. 나중에 수를 늘려 더 많은 이미지 모음에서 테스트해 볼 수 있습니다.
+ * 
+ * 특히 argmax 함수는 확률이 가장 높은 클래스 색인을 제공합니다. 모델은 각 클래스의 확률을 출력한다는 점을 유의하세요. 여기서는 가장 높은 확률을 찾아 이를 예측으로 할당합니다.
+ * 
+ * 또한 한번에 500개의 예시 모두에 대한 예측을 수행할 수도 있습니다. (벡터화 기능 덕분)
+ */
+function doPrediction(model, data, testDataSize = 500) {
+  const IMAGE_WIDTH = 28;
+  const IMAGE_HEIGHT = 28;
+  const testData = data.nextTestBatch(testDataSize);
+  const testxs = testData.xs.reshape([testDataSize, IMAGE_WIDTH, IMAGE_HEIGHT, 1]);
+  const labels = testData.labels.argMax(-1);
+  const preds = model.predict(testxs).argMax(-1);
+
+  testxs.dispose();
+  return [preds, labels];
+}
+
+
+/**
+ * 
+ * @param {*} model 
+ * @param {*} data 
+ * 클래스당 정확성 표시
+ * 예측 집합과 라벨을 사용해 각 클래스의 정확성을 개선할 수 있습니다.
+ */
+async function showAccuracy(model, data) {
+  const [preds, labels] = doPrediction(model, data);
+  const classAccuracy = await tfvis.metrics.perClassAccuracy(labels, preds);
+  const container = {name: 'Accuracy', tab: 'Evaluation'};
+  tfvis.show.perClassAccuracy(container, classAccuracy, classNames);
+
+  labels.dispose();
+}
+
+/**
+ * 
+ * @param {*} model 
+ * @param {*} data 
+ * 혼동 행렬 표시
+ * 혼동 행렬은 클래스당 정확성과 비슷하지만 상세 분석을 통해 잘못된 분류의 패턴을 보여줍니다.
+ * 이를 통해 모델에 특정 클래스 쌍에 대해 혼동이 있는지 확인할 수 있습니다.
+ */
+async function showConfusion(model, data) {
+  const [preds, labels] = doPrediction(model, data);
+  const confusionMatrix = await tfvis.metrics.confusionMatrix(labels, preds);
+  const container = {name: 'Confusion Matrix', tab: 'Evaluation'};
+  tfvis.render.confusionMatrix(container, {values: confusionMatrix, tickLabels: classNames});
+
+  labels.dispose();
+}
