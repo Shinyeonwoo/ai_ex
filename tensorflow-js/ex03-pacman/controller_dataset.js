@@ -17,30 +17,30 @@
 import * as tf from '@tensorflow/tfjs';
 
 /**
- * A dataset for webcam controls which allows the user to add example Tensors
- * for particular labels. This object will concat them into two large xs and ys.
+ * 사용자가 예제 Tensor를 추가할 수 있는 웹캠 컨트롤용 데이터세트
+ * 특정 라벨의 경우. 이 객체는 두 개의 큰 x와 y를 연결합니다.
  */
 export class ControllerDataset {
   constructor(numClasses) {
     this.numClasses = numClasses;
   }
 
-  /**
-   * Adds an example to the controller dataset.
-   * @param {Tensor} example A tensor representing the example. It can be an image,
-   *     an activation, or any other type of Tensor.
-   * @param {number} label The label of the example. Should be a number.
+/**
+   * 컨트롤러 데이터 세트에 예제를 추가합니다.
+   * @param {Tensor} 예제 예제를 나타내는 텐서입니다. 이미지일 수도 있고,
+   * 활성화 또는 다른 유형의 Tensor.
+   * @param {number} label 예제의 레이블입니다. 숫자여야 합니다.
    */
   addExample(example, label) {
-    // One-hot encode the label.
+    // 레이블을 원-핫 인코딩합니다.
     const y = tf.tidy(
         () => tf.oneHot(tf.tensor1d([label]).toInt(), this.numClasses));
 
     if (this.xs == null) {
-      // For the first example that gets added, keep example and y so that the
-      // ControllerDataset owns the memory of the inputs. This makes sure that
-      // if addExample() is called in a tf.tidy(), these Tensors will not get
-      // disposed.
+      // 추가되는 첫 번째 예제의 경우 example과 y를 유지하여
+      // ControllerDataset는 입력 메모리를 소유합니다. 이는 다음을 보장합니다.
+      // tf.tidy()에서 addExample()이 호출되면 이 Tensor는 가져오지 않습니다.
+      // 폐기됨.
       this.xs = tf.keep(example);
       this.ys = tf.keep(y);
     } else {
